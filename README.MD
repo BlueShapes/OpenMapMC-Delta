@@ -352,6 +352,7 @@ GPU rendering or every external-mod combination.
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
+Project contributions are acknowledged in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## Security
 

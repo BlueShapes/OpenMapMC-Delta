@@ -47,6 +47,7 @@ Upstream comparison baseline: Odyssey Map 1.3.0 by NAIZO, upstream commit `d4bf7
 | F52: 初回8秒の案内・Controllableボタン画像 | 未反映 | 未反映 | 未反映 | 実装・policy／styled glyph／両loader build（実GPU／device未検証） |
 | F53: 任意の地表地名・分岐する川・国／地域の階層編集 | 未実装 | 未実装 | 未実装 | 実装・対象core／service／editor helper・両loader build／JAR検証（実機入力／GPU未検証） |
 | F54: 標準サイズの設定ボタン・カテゴリーヘッダー・スクロール一覧 | 実装・geometry／両loader build（実機入力／GPU未検証） | 実装・native API review／両loader build（実機入力／GPU未検証） | 実装・native API review／両loader build済み（配置先未指定・実機未検証） | 実装・native API review／両loader build（実機入力／GPU未検証） |
+| F56: CI build matrix and locked workflow dependencies | CI verified | CI verified | CI verified | CI verified |
 
 ## 3. 差分と保持すべき要件
 
@@ -473,8 +474,25 @@ Upstream comparison baseline: Odyssey Map 1.3.0 by NAIZO, upstream commit `d4bf7
 - Exclude personal agent instructions, IDE launch profiles, credentials, local workspaces, generated outputs and private historical evidence.
 - Keep build and contribution instructions portable. No contributor is required to use a maintainer's account, SSH key, launcher instance, agent tool or automatic deployment workflow.
 
+### F56 — GitHub Actions builds and locked workflow dependencies
+
+- Preserve the four-workspace CI matrix: Minecraft 1.20.1 with Java 17, 1.21.1 with Java 21, and 26.1.2 / 26.2 with Java 25.
+- Build each independent version root with its own Gradle wrapper. Keep Unix wrapper executable modes intact.
+- Preserve `.github/workflows/actions.lock` when changing workflow dependencies, and keep its entries aligned with `.github/workflows/build.yml`.
+- Use read-only repository permissions, avoid retained checkout credentials, and keep pull-request caches read-only.
+- Upload completed loader artifacts while excluding sources, Javadoc, development/shadow JARs, and `buildSrc` / `build-logic` outputs. CI does not deploy to a contributor's Minecraft instance.
+- The initial implementation and artifact filtering were contributed by [sysnote8main](https://github.com/sysnote8main); see [CONTRIBUTORS.md](../CONTRIBUTORS.md).
+
 ## Public snapshot note
 
 2026-11-02: Prepared OpenMapMC Delta for publication at https://github.com/BlueShapes/OpenMapMC-Delta with a new root commit. Preserved the runtime implementation and compatibility identifiers while separating private operational history from this functional register. The previous fork history is not imported. Publication changes do not require a new Minecraft runtime build or deployment.
 
 Publication checks: independent privacy review passed and Gitleaks reported zero findings in the staged public snapshot. Compared 1,759 runtime/build/test/script blobs with the source snapshot; only an opaque synthetic migration-test value was replaced with an explicit test sample. The targeted data-directory migration runner passed 42 assertions; its Windows junction and ACL cases were skipped by the test environment. Retained all licenses, third-party notices and five Gradle wrapper JARs, and enabled executable modes on the Unix wrappers. No Minecraft instance or saved data was changed. Initial commit message: `Initial public release of OpenMapMC Delta.`
+
+## 2026-11-02 — CI contribution review and attribution
+
+- Reviewed the four legacy commits authored by the GitHub account `sysnote8main`. The useful implementation from `9cf4a1f` (CI, dependency locking and wrapper modes), `4af1d71` (artifact exclusions) and `ed3d2d6` (`build-logic` exclusion) is already present in the initial public snapshot. The workflow, lockfile and four version-root wrappers match the final source versions, including their Git modes.
+- The remaining commit, `5c6184e`, updates historical CI-run records only. Its private operational record is not imported or treated as verification of this public repository.
+- Added explicit contributor credit and F56 without replacing F55's public-repository privacy requirements. A `Co-authored-by` trailer credits `sysnote8main` using the account's GitHub no-reply identity; the original contact address is not republished.
+- Verification: compared the actual CI files and wrapper modes, checked local documentation links and privacy constraints, and confirmed all four jobs succeeded in [the public snapshot's CI run](https://github.com/BlueShapes/OpenMapMC-Delta/actions/runs/41345761154). This change only documents attribution and existing CI requirements, so full builds and Minecraft deployment are unnecessary. The attribution commit skips CI rather than repeating the unchanged build matrix.
+- Runtime behavior, save/config formats, protocol, permissions and translations are unchanged. No old Git ancestry, personal agent instructions or private work records are merged. Commit message: `Credit sysnote8main's CI contributions.`
