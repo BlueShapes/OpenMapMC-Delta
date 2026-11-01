@@ -1,0 +1,28 @@
+// Fresh JVM probe for the production Clone handler; no Minecraft client startup is involved.
+gradle.afterProject { p ->
+    if (p.path == ':neoforge') {
+        def repository = p.rootProject.projectDir.parentFile
+        def probeSources = [
+                new File(repository, 'tests/respawn-stubs/net/minecraft/client/player/LocalPlayer.java'),
+                new File(repository, 'tests/respawn-stubs/net/aosankaku/openmapdelta/client/ClientEvents.java'),
+                new File(repository, 'tests/NeoForgeClientRespawnTest.java')
+        ]
+        def compileProbe = p.tasks.register('compileClientRespawnProbe', JavaCompile) {
+            dependsOn p.tasks.named('compileJava')
+            source probeSources
+            classpath = p.files()
+            destinationDirectory = p.layout.buildDirectory.dir('client-respawn-probe-tests')
+            options.encoding = 'UTF-8'
+            options.release = 21
+        }
+        p.tasks.register('clientRespawnProbe', JavaExec) {
+            dependsOn compileProbe
+            def probeJar = p.findProperty('clientRespawnProbeJar')
+            def probeOutput = compileProbe.flatMap { it.destinationDirectory }
+            classpath = probeJar
+                    ? p.files(probeOutput, p.file(probeJar), p.sourceSets.main.output, p.configurations.compileClasspath)
+                    : p.files(probeOutput, p.sourceSets.main.output, p.configurations.compileClasspath)
+            mainClass = 'NeoForgeClientRespawnTest'
+        }
+    }
+}

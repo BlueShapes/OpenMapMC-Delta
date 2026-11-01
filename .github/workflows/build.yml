@@ -1,0 +1,67 @@
+# Copyright (c) 2026 AoSankaku. Apache-2.0.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build ${{ matrix.workspace }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: 1.20.1
+            java: "17"
+          - workspace: 1.21.1
+            java: "21"
+          - workspace: 26.1.2
+            java: "25"
+          - workspace: 26.2
+            java: "25"
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v5.7.0
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+
+      - uses: gradle/actions/setup-gradle@v6.3.0
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Build
+        working-directory: ${{ matrix.workspace }}
+        run: ./gradlew build --no-daemon --stacktrace
+
+      - name: Upload JARs
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: openmapdelta-${{ matrix.workspace }}
+          path: |
+            ${{ matrix.workspace }}/*/build/libs/*.jar
+            !${{ matrix.workspace }}/buildSrc/**
+            !${{ matrix.workspace }}/build-logic/**
+            !${{ matrix.workspace }}/*/build/libs/*-sources.jar
+            !${{ matrix.workspace }}/*/build/libs/*-javadoc.jar
+            !${{ matrix.workspace }}/*/build/libs/*-dev.jar
+            !${{ matrix.workspace }}/*/build/libs/*-shadow.jar
+          retention-days: 7

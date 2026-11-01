@@ -1,0 +1,13 @@
+{
+  "pack": {
+    "description": "${mod_name}",
+    "pack_format": 15
+  },
+  "language": {
+    "yue_hk": {
+      "name": "粵語",
+      "region": "香港",
+      "bidirectional": false
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+    "required": true,
+    "minVersion": "0.8",
+    "package": "net.aosankaku.openmapdelta.mixin",
+    "refmap": "${mod_id}.refmap.json",
+    "compatibilityLevel": "JAVA_21",
+    "mixins": ["ServerPlayerDeathMixin", "PlayerDeathDropMixin", "ItemEntityRecoveryMixin", "ServerLevelDeathDropMixin", "CorpseRemovalMixin", "EntityDeathDropRemovalMixin"],
+    "client": ["SleepSpawnMessageMixin", "SleepBedInteractionMixin", "MixinWaypointImportCommand", "ChatListenerMixin", "ServerTimeMixin", "BiomeManagerAccessor", "ClientLoginConnectionAccessor", "ChunkMapRevisionMixin"],
+    "server": [],
+    "injectors": { "defaultRequire": 1 }
+}

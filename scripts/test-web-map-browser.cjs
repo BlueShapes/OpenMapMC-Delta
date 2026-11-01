@@ -1,0 +1,76 @@
+// Copyright (c) 2026 AoSankaku. OpenMapMC Delta modifications; derived from Odyssey Map by NAIZO under Apache-2.0.
+// Headless, seeded fixture only. Does not open the user's Chrome or leave a server running.
+'use strict';
+const assert = require('node:assert/strict');
+const {spawn} = require('node:child_process');
+const path = require('node:path');
+const fs = require('node:fs');
+const {chromium} = require(process.env.ODYSSEY_PLAYWRIGHT || 'playwright');
+const classpath = process.env.ODYSSEY_WEB_TEST_CLASSPATH;
+if (!classpath) throw new Error('Run test-web-map.ps1 -CompileOnly, then set ODYSSEY_WEB_TEST_CLASSPATH.');
+const java = path.join(process.env.JAVA_HOME,'bin','java.exe');
+const server = spawn(java,['-cp',classpath,'net.aosankaku.openmapdelta.web.WebMapTest','--serve','0'],{stdio:['pipe','pipe','pipe'],windowsHide:true});
+let browser;
+async function waitPort() {
+  return await new Promise((resolve,reject)=>{let output=''; const timeout=setTimeout(()=>reject(new Error('Fixture did not start')),10000);server.stdout.on('data',bytes=>{output+=bytes;const match=output.match(/FIXTURE_PORT=(\d+)/);if(match){clearTimeout(timeout);resolve(Number(match[1]));}});server.on('exit',code=>{clearTimeout(timeout);reject(new Error('Fixture exited: '+code));});server.stderr.on('data',bytes=>process.stderr.write(bytes));});
+}
+(async()=>{
+  const port=await waitPort(), url='http://127.0.0.1:'+port;
+  browser=await chromium.launch({headless:true,...(process.env.ODYSSEY_BROWSER_EXECUTABLE?{executablePath:process.env.ODYSSEY_BROWSER_EXECUTABLE}:{})});
+  const context=await browser.newContext({viewport:{width:1280,height:800}}), page=await context.newPage();
+  const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(url);await page.locator('#authentication').waitFor({state:'visible'});
+  await page.locator('#password').fill('wrong');await page.locator('#login button').click();
+  await page.locator('#login-error').filter({hasText:'Incorrect password'}).waitFor();
+  await page.locator('#password').fill('fixture-only');await page.locator('#login button').click();
+  await page.locator('#authentication').waitFor({state:'hidden'});
+  await page.locator('.player').filter({hasText:'Alice'}).waitFor();
+  await page.waitForFunction(()=>{const data=document.getElementById('map').getContext('2d').getImageData(650,420,1,1).data;return data[0]>245&&data[1]<12&&data[2]<12;});
+  assert.deepEqual(await page.evaluate(()=>Array.from(document.getElementById('map').getContext('2d').getImageData(650,420,1,1).data).slice(0,3)),[255,0,0], 'Player skin face image was not drawn');
+  assert.deepEqual(await page.evaluate(()=>Array.from(document.getElementById('map').getContext('2d').getImageData(620,430,1,1).data).slice(0,3)),[255,165,0], 'Create station symbol image was not drawn');
+  assert.deepEqual(await page.evaluate(()=>Array.from(document.getElementById('map').getContext('2d').getImageData(600,490,1,1).data).slice(0,3)),[224,208,32], 'MTR station symbol image was not drawn');
+  assert.deepEqual(await page.evaluate(()=>Array.from(document.getElementById('map').getContext('2d').getImageData(610,370,1,1).data).slice(0,3)),[255,0,255], 'Unavailable waypoint icon did not fall back to its marker color');
+  const gridPixels=()=>page.evaluate(()=>{const ctx=document.getElementById('map').getContext('2d');return Array.from(ctx.getImageData(653,350,7,1).data).reduce((count,_,index,array)=>index%4===0&&!(array[index]===68&&array[index+1]===126&&array[index+2]===54)?count+1:count,0);});
+  assert.ok(await gridPixels()>=2,'Chunk boundary did not render with a two-pixel line');
+  assert.equal(await page.locator('#logout').count(),0,'Logout button must be absent');
+  const grid=page.locator('#grid');
+  assert.equal(await grid.textContent(),'Hide grid');assert.equal(await grid.getAttribute('aria-pressed'),'true');
+  const gridBounds=await grid.boundingBox();assert.ok(gridBounds.x>640&&gridBounds.y>700,'Grid button must be at the bottom right');
+  await grid.click();assert.equal(await grid.textContent(),'Show grid');assert.equal(await grid.getAttribute('aria-pressed'),'false');
+  assert.equal(await gridPixels(),0,'Hidden grid must leave terrain pixels intact');
+  await page.reload();await page.locator('.player').filter({hasText:'Alice'}).waitFor();
+  assert.equal(await grid.textContent(),'Show grid');assert.equal(await grid.getAttribute('aria-pressed'),'false');
+  await page.waitForFunction(()=>document.getElementById('map').getContext('2d').getImageData(656,350,1,1).data[0]===68);
+  assert.equal(await gridPixels(),0,'Reload must preserve hidden grid pixels');
+  await grid.click();assert.ok(await gridPixels()>=2,'Showing the grid must restore chunk boundaries');
+  assert.equal(await page.locator('.player').count(),2);
+  await page.locator('#search').fill('ali');assert.equal(await page.locator('.player').count(),1);
+  await page.locator('.player').click();assert.match(await page.locator('#detail-coordinates').textContent(),/X: 10\s+Y: 68\s+Z: 20/);
+  await page.locator('#toggle').click();assert.equal(await page.locator('#players').isVisible(),false);
+  await page.locator('#toggle').click();assert.equal(await page.locator('#players').isVisible(),true);
+  await page.locator('#search').fill('');await page.locator('#recenter').click();
+  await page.mouse.click(650.5,420.5);assert.equal(await page.locator('#detail-name').textContent(),'Alice');
+  await page.locator('#minus').click();assert.equal(await page.locator('#zoom').textContent(),'0.5×');
+  for(let i=0;i<5;i++)await page.locator('#plus').click();
+  assert.equal(await page.locator('#zoom').textContent(),'16×','Zoom-in buttons did not reach the 16× cap');
+  await page.locator('#plus').click();await page.mouse.wheel(0,-120);
+  assert.equal(await page.locator('#zoom').textContent(),'16×','Button or wheel zoom exceeded the 16× cap');
+  await page.reload();await page.locator('.player').filter({hasText:'Alice'}).waitFor();assert.equal(await page.locator('#authentication').isVisible(),false);
+  const storage=await context.storageState();const restored=await browser.newContext({storageState:storage});
+  const reopened=await restored.newPage();await reopened.goto(url);await reopened.locator('.player').filter({hasText:'Alice'}).waitFor();
+  assert.equal(await reopened.locator('#authentication').isVisible(),false);await restored.close();
+  const blocked=await browser.newContext({storageState:storage});
+  await blocked.addInitScript(()=>Object.defineProperty(window,'localStorage',{get(){throw new DOMException('Storage blocked','SecurityError');}}));
+  const blockedPage=await blocked.newPage(),blockedErrors=[];blockedPage.on('pageerror',error=>blockedErrors.push(error.message));
+  await blockedPage.goto(url);await blockedPage.locator('.player').filter({hasText:'Alice'}).waitFor();
+  assert.equal(await blockedPage.locator('#grid').getAttribute('aria-pressed'),'true');
+  await blockedPage.locator('#grid').click();assert.equal(await blockedPage.locator('#grid').getAttribute('aria-pressed'),'false');
+  assert.deepEqual(blockedErrors,[],'Blocked storage must not prevent map use');await blocked.close();
+  assert.equal(await page.locator('img[src=x]').count(),0,'Untrusted waypoint created HTML');
+  await page.setViewportSize({width:375,height:812});
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'Mobile overflow');
+  const screenshot=process.env.ODYSSEY_WEB_SCREENSHOT;
+  if(screenshot){fs.mkdirSync(path.dirname(screenshot),{recursive:true});await page.screenshot({path:screenshot});}
+  assert.equal(await grid.isVisible(),true,'Grid toggle remains available on mobile');
+  assert.deepEqual(errors,[]);console.log('Web browser: login, persisted session, search, collapse, player coordinates, zoom, mobile, XSS and persisted grid toggle passed');
+})().catch(error=>{console.error(error);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();server.stdin.end('\n');await new Promise(resolve=>{if(server.exitCode!==null)return resolve();const timeout=setTimeout(()=>{server.kill();resolve();},5000);server.once('exit',()=>{clearTimeout(timeout);resolve();});});});

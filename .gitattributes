@@ -1,0 +1,5 @@
+# Normalize text while keeping wrappers usable on each platform.
+* text=auto
+/gradlew text eol=lf
+**/gradlew text eol=lf
+*.bat text eol=crlf

@@ -1,0 +1,9 @@
+// Fresh-JVM registration check; does not start Minecraft or require DevLaunch.
+gradle.afterProject { p ->
+    if (p.path == ':neoforge') {
+        p.tasks.register('sharedWaypointRegistrationProbe', JavaExec) {
+            classpath = p.sourceSets.main.output + p.configurations.compileClasspath + p.files('../common/build/registration-probe-tests')
+            mainClass = 'NeoForgeSharedWaypointRegistrationTest'
+        }
+    }
+}

@@ -1,0 +1,14 @@
+<!-- Copyright (c) 2026 AoSankaku. OpenMapMC Delta modifications; derived from Odyssey Map by NAIZO under Apache-2.0. -->
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenMap Delta</title><link rel="stylesheet" href="/map.css"><script src="/map.js" defer></script></head>
+<body>
+<canvas id="map" aria-label="OpenMap Delta"></canvas>
+<header><h1>OpenMap Delta</h1><span id="dimension"></span><span id="layer"></span><span id="zoom">1×</span></header>
+<button id="toggle" data-label="hide_players" aria-controls="players" aria-expanded="true">Hide players</button>
+<aside id="players"><h2 data-label="players">Players</h2><input id="search" type="search" autocomplete="off" aria-label="Search players" placeholder="Search players"><div id="player-list"></div></aside>
+<nav><button id="plus" data-label="zoom_in" aria-label="Zoom in">+</button><button id="minus" data-label="zoom_out" aria-label="Zoom out">−</button><button id="recenter" data-label="recenter">Recenter</button><button id="grid" data-label="hide_grid" aria-controls="map" aria-pressed="true">Hide grid</button></nav>
+<div id="coordinates" role="status"></div><div id="details" hidden><strong id="detail-name"></strong><div id="detail-coordinates"></div><div id="detail-dimension"></div></div>
+<div id="status" role="status"></div>
+<section id="authentication" hidden><form id="login"><h2>OpenMap Delta</h2><label for="password" data-label="password">Password</label><input id="password" type="password" autocomplete="current-password" required maxlength="1024"><button type="submit" data-label="login">Sign in</button><p id="login-error" role="alert"></p></form></section>
+</body></html>
